@@ -4,5 +4,5 @@ inventory_username: "{{ lookup('pipe', 'php -f gethosts.cfg.php USERNAME') }}"
 #Linode
 linode_plan: 0
 linode_id: 0
-linode_api_key: "{{ lookup('passwordstore', 'megaphone/linode/apikey') }}"
+linode_personal_access_token: "{{ lookup('passwordstore', 'megaphone/linode/personal_access_token') }}"
 linode_username: jongoldberg
