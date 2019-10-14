@@ -26,14 +26,14 @@
     port: 22
   when: linode is changed
 
-- name: Set the inventory hostname to the Linode IP address if it exists
-  set_fact:
-    inventory_hostname: "{{ linode.instance.ipv4 }}"
-  when: linode.instance is defined
+#- name: Set the inventory hostname to the Linode IP address if it exists
+#  set_fact:
+#    inventory_hostname: "{{ linode.instance.ipv4 }}"
+#  when: linode.instance is defined
 
 # If this returns true, skip the rest of provisioning.
 - name: Check if Ansible user exists
-  command: ssh -q -o BatchMode=yes -o ConnectTimeout=3 {{ ansible_user_2 }}@{{ inventory_hostname }} "echo OK"
+  command: ssh -q -o BatchMode=yes -o ConnectTimeout=3 {{ ansible_user_2 }}@{{ linode.instance.ipv4 }} "echo OK"
   changed_when: false
   failed_when: false
   register: check_ansible_user
