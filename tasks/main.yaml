@@ -1,7 +1,7 @@
 # sudo pip2 install python-linode
 - name: Provision a Linode VM
   linode_v4:
-    access_token: "{{ linode_api_key }}"
+    access_token: "{{ linode_personal_access_token }}"
     label: "{{ inventory_hostname_short }}"
     type: "g6-nanode-1"
     root_pass: "{{ lookup('passwordstore', client + '/' + hostname + '/root create=true length=32') }}"
@@ -16,18 +16,18 @@
 - name: Wait for Linode to listen on port 22
   wait_for:
     state: started
-    host: "{{ linode.instance.ipv4 }}"
+    host: "{{ linode.instance.ipv4 | first }}"
     port: 22
   when: linode is changed
 
 #- name: Set the inventory hostname to the Linode IP address if it exists
 #  set_fact:
-#    inventory_hostname: "{{ linode.instance.ipv4 }}"
+#    inventory_hostname: "{{ linode.instance.ipv4 | first }}"
 #  when: linode.instance is defined
 
 # If this returns true, skip the rest of provisioning.
 - name: Check if Ansible user exists
-  command: ssh -q -o BatchMode=yes -o ConnectTimeout=3 {{ ansible_user_2 }}@{{ linode.instance.ipv4 }} "echo OK"
+  command: ssh -q -o BatchMode=yes -o ConnectTimeout=3 {{ ansible_user_2 }}@{{ linode.instance.ipv4 | first }} "echo OK"
   changed_when: false
   failed_when: false
   register: check_ansible_user
@@ -39,7 +39,7 @@
       match_max 5000
       set prompt "~# $"
       set prompt [string trim $prompt]
-      spawn ssh -t {{ linode_username }}@lish-newark.linode.com "{{ linode.instance.name }}"
+      spawn ssh -t {{ linode_username }}@lish-newark.linode.com "{{ inventory_hostname_short }}"
       #expect -re "login:.*$"
       send "root\n"
       expect "Password:"
@@ -59,8 +59,8 @@
   
   - name: update the local known_hosts by IP
     known_hosts:
-      name: "{{ linode.instance.ipv4 }}"
-      key: "{{ linode.instance.ipv4 + item }}"
+      name: "{{ linode.instance.ipv4 | first }}"
+      key: "{{ linode.instance.ipv4 | first + item }}"
       path: "{{ lookup('env','HOME') }}/.ssh/known_hosts"
     with_items: "{{ definitive_keys.stdout_lines }}"
 
@@ -105,8 +105,8 @@
         field_ipv4_address:
           und:
             0:
-              end: "{{ linode.instance.ipv4 }}"
-              start: "{{ linode.instance.ipv4 }}"
+              end: "{{ linode.instance.ipv4 | first }}"
+              start: "{{ linode.instance.ipv4 | first }}"
         field_linode_id:
           und:
             0:
@@ -120,13 +120,13 @@
   # Next two steps add DNS
   - name: Add new host to in-memory inventory
     add_host:
-      hostname: "{{ linode.instance.ipv4 }}"
+      hostname: "{{ linode.instance.ipv4 | first }}"
       groupname: "linode"
       ansible_user: root
     when: linode.instance is defined and (linode.instance.id|string != linode_id|string)
 
   - name: Update MFPL DNS
-    local_action: command php "{{ inventory_dir }}/helpers/mfplapi.php" "{{ fqdn }}" "{{ linode.instance.ipv4 }}"
+    local_action: command php "{{ inventory_dir }}/helpers/mfplapi.php" "{{ fqdn }}" "{{ linode.instance.ipv4 | first }}"
     with_items: groups['linode']
     register: dnshelper_result
     when: linode.instance is defined
