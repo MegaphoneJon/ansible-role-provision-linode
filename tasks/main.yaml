@@ -1,20 +1,14 @@
 # sudo pip2 install python-linode
 - name: Provision a Linode VM
-  linode:
-    api_key: "{{ linode_api_key }}"
-    name: "{{ inventory_hostname_short }}"
-    linode_id: "{{ linode_id }}"
-    plan: "{{ linode_plan }}"
-    password: "{{ lookup('passwordstore', client + '/' + hostname + '/root create=true length=32') }}"
-    # Newark, NJ
-    datacenter: 6
-    # Debian 9
-    distribution: 158
-    swap: 256
+  linode_v4:
+    access_token: "{{ linode_api_key }}"
+    label: "{{ inventory_hostname_short }}"
+    type: "g6-nanode-1"
+    root_pass: "{{ lookup('passwordstore', client + '/' + hostname + '/root create=true length=32') }}"
+    region: us-east
+    image: linode/debian10
     # This should use your primary public key.  Others will be added post-provision.
-    ssh_pub_key: "{{ lookup('file', 'files/id_rsa.pub') }}"
-    wait: yes
-    wait_timeout: 600
+    authorized_keys: "{{ lookup('file', 'files/id_rsa.pub') }}"
     state: present
   when: hosting_company == "Linode" and linode_plan > 0
   register: linode
