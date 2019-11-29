@@ -50,7 +50,7 @@
       set output $expect_out(1,string)
       send "\nlogout\n"
       expect -re "login: $"
-      set output2 [exec echo $output | sed "s/\u001b\d{3};\d{3}H//g" | sed "s/\b//g" | sed "s/localhost//g" | grep -v #]
+      set output2 [exec echo $output | sed "s/\u001b\[*\d{3};\d{3}H//g" | sed "s/\b//g" | sed "s/localhost//g" | grep -v #]
       puts $output2
       exit
     args:
