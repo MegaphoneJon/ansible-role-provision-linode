@@ -62,17 +62,12 @@
     set_fact: 
       fixed_keys: "{{ definitive_keys.stdout_lines | map('regex_replace','[\x1B]\\[[\\d;]*[^\\d;]') | list }}"
 
-  - debug: var=definitive_keys.stdout_lines
-  - debug: var=fixed_keys
-
-  
-  - fail: 
   - name: update the local known_hosts by IP
     known_hosts:
       name: "{{ linode.instance.ipv4 | first }}"
       key: "{{ linode.instance.ipv4 | first + item }}"
       path: "{{ lookup('env','HOME') }}/.ssh/known_hosts"
-    with_items: "{{ definitive_keys.stdout_lines }}"
+    with_items: "{{ fixed_keys }}"
 
   - name: remove existing known_hosts by hostname
     known_hosts:
@@ -80,14 +75,14 @@
       key: "{{ fqdn + item }}"
       path: "{{ lookup('env','HOME') }}/.ssh/known_hosts"
       state: absent
-    with_items: "{{ definitive_keys.stdout_lines }}"
+    with_items: "{{ fixed_keys }}"
 
   - name: update the local known_hosts by hostname
     known_hosts:
       name: "{{ fqdn }}"
       key: "{{ fqdn + item }}"
       path: "{{ lookup('env','HOME') }}/.ssh/known_hosts"
-    with_items: "{{ definitive_keys.stdout_lines }}"
+    with_items: "{{ fixed_keys }}"
 
   # Next two steps update crm.megaphonetech.com/server-list
   - name: Login to Drupal Inventory
@@ -124,7 +119,7 @@
         field_ssh_keys:
           und:
             0:
-              value: "{{ definitive_keys.stdout }}"
+              value: "{{ fixed_keys | join('\n') }}"
     when: hosting_company == "Linode" and linode_plan > 0
 
   # Next two steps add DNS
