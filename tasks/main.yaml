@@ -59,12 +59,12 @@
 
   # Some fucking bug causes regex_replace to not work on an array if you have an escape code.  Wasted a lot of time on that.
   - name: Remove the stupid ANSI escape codes
-    debug: msg={{ item | regex_replace('[\x1B]\[[\d;]*[^\d;]', '') }}
-    with_items: "{{ definitive_keys.stdout_lines }}"
-    register: fixed_keys
+    set_fact: 
+      fixed_keys: "{{ definitive_keys.stdout_lines | map('regex_replace','[\x1B]\\[[\\d;]*[^\\d;]') | list }}"
 
-  - debug: var=item
-    with_items: "{{ fixed_keys }}"
+  - debug: var=definitive_keys.stdout_lines
+  - debug: var=fixed_keys
+
   
   - fail: 
   - name: update the local known_hosts by IP
