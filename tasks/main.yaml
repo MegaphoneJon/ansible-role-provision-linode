@@ -50,13 +50,23 @@
       set output $expect_out(1,string)
       send "\nlogout\n"
       expect -re "login: $"
-      set output2 [exec echo $output | sed "s/\u001b\[*\d{3};\d{3}H//g" | sed "s/\b//g" | sed "s/localhost//g" | grep -v #]
+      set output2 [exec echo $output | sed "s/\b//g" | sed "s/localhost//g" | grep -v #]
       puts $output2
       exit
     args:
       executable: /usr/bin/expect
     register: definitive_keys
+
+  # Some fucking bug causes regex_replace to not work on an array if you have an escape code.  Wasted a lot of time on that.
+  - name: Remove the stupid ANSI escape codes
+    debug: msg={{ item | regex_replace('[\x1B]\[[\d;]*[^\d;]', '') }}
+    with_items: "{{ definitive_keys.stdout_lines }}"
+    register: fixed_keys
+
+  - debug: var=item
+    with_items: "{{ fixed_keys }}"
   
+  - fail: 
   - name: update the local known_hosts by IP
     known_hosts:
       name: "{{ linode.instance.ipv4 | first }}"
@@ -131,4 +141,4 @@
     register: dnshelper_result
     when: linode.instance is defined
     changed_when: "dnshelper_result.stdout != 'DNS already exists and is correct.'"
-  when: linode is changed and check_ansible_user.rc != 0
+  when: check_ansible_user.rc != 0
