@@ -1,0 +1,73 @@
+- name: List the Linode domains
+  uri:
+    url: https://api.linode.com/v4/domains 
+    headers:
+      Authorization: Bearer {{ linode_personal_access_token }}
+  register: domain_list
+
+- name: Get the domain ID
+  set_fact:
+    domain_id: "{{ domain_list | json_query(domain_id_query) | first }}"
+  vars: 
+    domain_id_query: "json.data[?domain == '{{ sld }}'].id"
+
+- name: Get the domain record list
+  uri:
+    url: "https://api.linode.com/v4/domains/{{ domain_id}}/records"
+    headers:
+      Authorization: Bearer {{ linode_personal_access_token }}
+  register: domain_record_list
+
+#- debug: var=domain_record_list
+
+- name: Get the domain record ID for the A record
+  set_fact:
+    domain_record_id_A: "{{ (domain_record_list | json_query(domain_record_id_A_query) + ['']) | first }}"
+    domain_record_id_AAAA: "{{ (domain_record_list | json_query(domain_record_id_AAAA_query) + ['']) | first }}"
+    domain_record_target_A: "{{ (domain_record_list | json_query(domain_record_target_A_query) + ['']) | first }}"
+    domain_record_target_AAAA: "{{ (domain_record_list | json_query(domain_record_target_AAAA_query) + ['']) | first }}"
+    domain_record_method_A: "PUT"
+    domain_record_method_AAAA: "PUT"
+  vars: 
+    domain_record_id_A_query: "json.data[?name=='{{ hostname }}' && type=='A'].id"
+    domain_record_id_AAAA_query: "json.data[?name=='{{ hostname }}' && type=='AAAA'].id"
+    domain_record_target_A_query: "json.data[?name=='{{ hostname }}' && type=='A'].target"
+    domain_record_target_AAAA_query: "json.data[?name=='{{ hostname }}' && type=='AAAA'].target"
+
+- name: Use POST not PUT for empty A records
+  set_fact:
+    domain_record_method_A: "POST"
+  when: domain_record_id_A == ''
+
+- name: Use POST not PUT for empty AAAA records
+  set_fact:
+    domain_record_method_AAAA: "POST"
+  when: domain_record_id_AAAA == ''
+
+- name: Create/update the DNS A record
+  uri:
+    url: "https://api.linode.com/v4/domains/{{ domain_id}}/records/{{ domain_record_id_A }}"
+    method: "{{ domain_record_method_A }}"
+    headers:
+      Authorization: Bearer {{ linode_personal_access_token }}
+    body_format: json
+    body:
+      name: "{{ hostname }}"     
+      target: "{{ linode.instance.ipv4 | first }}" 
+      ttl_sec: 3600
+      type: "A"
+  when: (linode.instance.ipv4 | first) != domain_record_id_A
+
+- name: Create/update the DNS AAAA record
+  uri:
+    url: "https://api.linode.com/v4/domains/{{ domain_id}}/records/{{ domain_record_id_AAAA }}"
+    method: "{{ domain_record_method_AAAA }}"
+    headers:
+      Authorization: Bearer {{ linode_personal_access_token }}
+    body_format: json
+    body:
+      name: "{{ hostname }}"     
+      target: "{{ linode.instance.ipv6 | replace('/64','') }}" 
+      ttl_sec: 3600
+      type: "AAAA"
+  when: linode.instance.ipv6 | replace('/64','') != domain_record_id_AAAA
