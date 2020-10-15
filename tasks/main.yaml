@@ -126,7 +126,7 @@
       password: "{{ lookup('passwordstore', 'megaphone/crm/restpassword') }}"
     method: POST
     body_format: json
-  when: hosting_company == "Linode" and linode_plan > 0 and linode is changed
+  when: hosting_company == "Linode" and linode_type is defined
   register: login
 
 - name: update the inventory node with linode ID, IP address, ssh key
@@ -151,5 +151,5 @@
 #        und:
 #          0:
 #            value: "{{ fixed_keys | join('\n') }}"
-  when: hosting_company == "Linode" and linode_plan > 0 and linode is changed
+  when: hosting_company == "Linode" and linode_type is defined
 
