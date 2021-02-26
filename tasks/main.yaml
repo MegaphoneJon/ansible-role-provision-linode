@@ -27,11 +27,12 @@
   include_tasks: linode-dns.yml
   when: nameservers is search("linode")
 
+# Bootstrap user is the user used to create the "ansible" user. For Linode, this *should* always be "root".
 - name: Add new host to in-memory inventory
   add_host:
     hostname: "{{ linode.instance.ipv4 | first }}"
     groupname: "linode"
-    ansible_user: root
+    ansible_user: "{{ bootstrap_user }}"
   when: linode.instance is defined and (linode.instance.id|string != linode_id|string)
 
 - name: Update MFPL DNS
