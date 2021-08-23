@@ -17,7 +17,7 @@
 # Next steps add DNS
 - name: Determine the SLD
   set_fact:
-    sld: "{{ fqdn | regex_search('(?:.+\\.)?([^.]+\\.(?:com|org|net|coop|space|co.uk|edu))', '\\1') | first }}"
+    sld: "{{ fqdn | regex_search('(?:.+\\.)?([^.]+\\.(?:com|org|net|coop|space|co.uk|edu|us))', '\\1') | first }}"
 
 - name: get the NS record(s) of the second-level domain
   set_fact:
