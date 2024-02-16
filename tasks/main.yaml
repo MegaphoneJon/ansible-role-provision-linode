@@ -5,9 +5,9 @@
     access_token: "{{ linode_personal_access_token }}"
     label: "{{ inventory_hostname_short }}"
     type: "{{ linode_type }}"
-    root_pass: "{{ lookup('passwordstore', client + '/' + hostname + '/root create=true length=32') }}"
+    root_pass: "{{ lookup('community.general.passwordstore', client + '/' + hostname + '/root create=true length=32') }}"
     region: us-east
-    image: linode/debian10
+    image: linode/debian12
     # This should use your primary public key.  Others will be added post-provision.
     authorized_keys: "{{ lookup('file', 'files/id_rsa.pub') }}"
     state: present
@@ -36,7 +36,7 @@
   when: linode.instance is defined and (linode.instance.id|string != linode_id|string)
 
 - name: Update MFPL DNS
-  local_action: command php "{{ inventory_dir }}/helpers/mfplapi.php" "{{ fqdn }}" "{{ linode.instance.ipv4 | first }}"
+  local_action: command php "{{ inventory_dir }}/helpers/mfplapi.php" "A"  "{{ fqdn }}" "{{ linode.instance.ipv4 | first }}"
   with_items: groups['linode']
   register: dnshelper_result
   when: linode.instance is defined and nameservers is search("mayfirst")
@@ -54,67 +54,67 @@
     inventory_hostname: "{{ linode.instance.ipv4 | first }}"
   when: linode is changed and lookup('dig', inventory_hostname) != (linode.instance.ipv4 | first)
 
-- name: See if known_hosts is defined, grab the key
-  shell: "ssh-keygen -F {{ fqdn }} | grep -v Host | cut -d ' ' -f 2,3"
-  register: existing_known_hosts_key
+# - name: See if known_hosts is defined, grab the key
+#   shell: "ssh-keygen -F {{ fqdn }} | grep -v Host | cut -d ' ' -f 2,3"
+#   register: existing_known_hosts_key
 
-- name: Get the known_hosts from the server (without protecting against MITM).
-  command: "ssh-keyscan {{ fqdn }}"
-  register: alleged_known_hosts_keys
+# - name: Get the known_hosts from the server (without protecting against MITM).
+#   command: "ssh-keyscan {{ fqdn }}"
+#   register: alleged_known_hosts_keys
 
-- debug: var=alleged_known_hosts_keys.stdout
-- debug: var=existing_known_hosts_key.stdout
-- block:
-  - name: get keys for known_hosts
-    shell: |
-      log_user 0
-      match_max 5000
-      set prompt "~# $"
-      set prompt [string trim $prompt]
-      spawn ssh -t {{ linode_username }}@lish-newark.linode.com "{{ inventory_hostname_short }}"
-      send "root\n"
-      expect "Password:"
-      send "{{ lookup('passwordstore', client + '/' + hostname + '/root') }}\n"
-      expect $prompt
-      send "ssh-keyscan localhost\n"
-      expect -re "ssh-keyscan localhost\r\n(.*)\r\nroot@.*$prompt"
-      set output $expect_out(1,string)
-      send "\nlogout\n"
-      expect -re "login: $"
-      set output2 [exec echo $output | sed "s/\b//g" | sed "s/localhost//g" | grep -v #]
-      puts $output2
-      exit
-    args:
-      executable: /usr/bin/expect
-    register: definitive_keys
+# - debug: var=alleged_known_hosts_keys.stdout
+# - debug: var=existing_known_hosts_key.stdout
+# - block:
+#   - name: get keys for known_hosts
+#     shell: |
+#       log_user 0
+#       match_max 5000
+#       set prompt "~# $"
+#       set prompt [string trim $prompt]
+#       spawn ssh -t {{ linode_username }}@lish-newark.linode.com "{{ inventory_hostname_short }}"
+#       send "root\n"
+#       expect "Password:"
+#       send "{{ lookup('community.general.passwordstore', client + '/' + hostname + '/root') }}\n"
+#       expect $prompt
+#       send "ssh-keyscan localhost\n"
+#       expect -re "ssh-keyscan localhost\r\n(.*)\r\nroot@.*$prompt"
+#       set output $expect_out(1,string)
+#       send "\nlogout\n"
+#       expect -re "login: $"
+#       set output2 [exec echo $output | sed "s/\b//g" | sed "s/localhost//g" | grep -v #]
+#       puts $output2
+#       exit
+#     args:
+#       executable: /usr/bin/expect
+#     register: definitive_keys
 
-  # Some fucking bug causes regex_replace to not work on an array if you have an escape code.  Wasted a lot of time on that.
-  - name: Remove the stupid ANSI escape codes
-    set_fact: 
-      fixed_keys: "{{ definitive_keys.stdout_lines | map('regex_replace','[\x1B]\\[[\\d;]*[^\\d;]') | list }}"
+#   # Some fucking bug causes regex_replace to not work on an array if you have an escape code.  Wasted a lot of time on that.
+#   - name: Remove the stupid ANSI escape codes
+#     set_fact: 
+#       fixed_keys: "{{ definitive_keys.stdout_lines | map('regex_replace','[\x1B]\\[[\\d;]*[^\\d;]') | list }}"
 
-  - name: update the local known_hosts by IP
-    known_hosts:
-      name: "{{ linode.instance.ipv4 | first }}"
-      key: "{{ linode.instance.ipv4 | first + item }}"
-      path: "{{ lookup('env','HOME') }}/.ssh/known_hosts"
-    with_items: "{{ fixed_keys }}"
+  # - name: update the local known_hosts by IP
+  #   known_hosts:
+  #     name: "{{ linode.instance.ipv4 | first }}"
+  #     key: "{{ linode.instance.ipv4 | first + item }}"
+  #     path: "{{ lookup('env','HOME') }}/.ssh/known_hosts"
+  #   with_items: "{{ fixed_keys }}"
 
-  - name: remove existing known_hosts by hostname
-    known_hosts:
-      name: "{{ fqdn }}"
-      key: "{{ fqdn + item }}"
-      path: "{{ lookup('env','HOME') }}/.ssh/known_hosts"
-      state: absent
-    with_items: "{{ fixed_keys }}"
+  # - name: remove existing known_hosts by hostname
+  #   known_hosts:
+  #     name: "{{ fqdn }}"
+  #     key: "{{ fqdn + item }}"
+  #     path: "{{ lookup('env','HOME') }}/.ssh/known_hosts"
+  #     state: absent
+  #   with_items: "{{ fixed_keys }}"
 
-  - name: update the local known_hosts by hostname
-    known_hosts:
-      name: "{{ fqdn }}"
-      key: "{{ fqdn + item }}"
-      path: "{{ lookup('env','HOME') }}/.ssh/known_hosts"
-    with_items: "{{ fixed_keys }}"
-  when: not(alleged_known_hosts_keys.stdout | regex_escape() is search(existing_known_hosts_key.stdout | regex_escape()))
+  # - name: update the local known_hosts by hostname
+  #   known_hosts:
+  #     name: "{{ fqdn }}"
+  #     key: "{{ fqdn + item }}"
+  #     path: "{{ lookup('env','HOME') }}/.ssh/known_hosts"
+  #   with_items: "{{ fixed_keys }}"
+  # when: not(alleged_known_hosts_keys.stdout | regex_escape() is search(existing_known_hosts_key.stdout | regex_escape()))
 
 # Next two steps update crm.megaphonetech.com/server-list
 - name: Login to Drupal Inventory
@@ -124,7 +124,7 @@
       X-CSRF-Token: token.json.token
     body:
       username: "{{ inventory_username }}"
-      password: "{{ lookup('passwordstore', 'megaphone/crm/restpassword') }}"
+      password: "{{ lookup('community.general.passwordstore', 'megaphone/crm/restpassword') }}"
     method: POST
     body_format: json
   when: hosting_company == "Linode" and linode_type is defined
