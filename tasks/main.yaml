@@ -9,7 +9,7 @@
     region: us-east
     image: linode/debian12
     # This should use your primary public key.  Others will be added post-provision.
-    authorized_keys: "{{ lookup('file', 'files/id_rsa.pub') }}"
+    authorized_keys: "{{ lookup('file', 'files/id_ed25519.pub') }}"
     state: present
   when: hosting_company == "Linode" and linode_type is defined
   register: linode
